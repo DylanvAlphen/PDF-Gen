@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Firebase\JWT\JWT;
 
 class CertificateController extends Controller
 {
@@ -12,20 +13,29 @@ class CertificateController extends Controller
     {
         $validated = $request->validate([
             'date' => 'required|date',
-            'image' => 'required|url',  
+            'image' => 'required|url',
             'signature_name' => 'required|string|max:255',
             'student_name' => 'required|string|max:255',
             'subject' => 'required|string|max:255',
         ]);
 
-        $apiToken = env('PDF_API_TOKEN'); 
-        $baseUrl = "https://us1.pdfgeneratorapi.com/api/v4"; 
+        $apiKey = env('PDF_API_KEY'); 
+        $apiSecret = env('PDF_API_SECRET'); 
         $workspaceId = env('WORKSPACE_ID'); 
-        $templateId = env('TEMPLATE_ID');
+        $templateId = env('TEMPLATE_ID'); 
+        $baseUrl = "https://us1.pdfgeneratorapi.com/api/v4"; 
 
-        if (!$apiToken || !$workspaceId || !$templateId) {
+        if (!$apiKey || !$apiSecret || !$workspaceId || !$templateId) {
             return response()->json(['error' => 'API credentials are missing.'], 500);
         }
+
+        $tokenPayload = [
+            "iss" => $apiKey,  
+            "sub" => $workspaceId,
+            "exp" => time() + 60
+        ];
+
+        $jwtToken = JWT::encode($tokenPayload, $apiSecret, 'HS256');
 
         $postData = [
             "template" => [
@@ -39,18 +49,17 @@ class CertificateController extends Controller
                 ]
             ],
             "format" => "pdf",
-            "output" => "url", 
+            "output" => "url",
             "name" => "Certificate_" . str_replace(' ', '_', $validated['student_name']),
             "testing" => false
         ];
 
-        $response = Http::withToken($apiToken)
+        $response = Http::withToken($jwtToken)
             ->withHeaders([
                 'Content-Type' => 'application/json',
-                'X-Workspace-Id' => $workspaceId, 
+                'X-Workspace-Id' => $workspaceId,
             ])
             ->post("$baseUrl/documents/generate", $postData);
-
         Log::info('PDF API Response:', $response->json());
 
         if ($response->failed()) {
