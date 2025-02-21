@@ -4,7 +4,7 @@
 ```bash
 composer install
 ```
-
+### Copy the .env.example to the main .env using this:
 ```bash
 cp .env.example .env
 ```
@@ -34,7 +34,7 @@ php artisan serve
 
 ```bash
 npm install
-# or
+#or
 yarn install
 ```
 
